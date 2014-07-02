@@ -1,150 +1,239 @@
 var childProcess = require('child_process'),
-exec = childProcess.exec,
-spawn = childProcess.spawn;
+	nodeSpawn = childProcess.spawn,
+	nodeUtil = require('util');
 
-var isArray = function (value) {
-	return Object.prototype.toString.apply(value) === '[object Array]';
+
+var sysCmdArgs = [],
+	sysCmdName = '',
+	sysOption = {};
+if (process.platform === 'win32') {
+	sysCmdName = 'cmd.exe';
+	sysCmdArgs = ['/s', '/c'];
+	//sysOption.windowsVerbatimArguments = true;
+} else {
+	sysCmdName = '/bin/sh';
+	sysCmdArgs = ['-c'];
+}
+
+
+
+/**
+ * å®šä¹‰
+ */
+var Cmd = function(name, cwd) {
+	this.name = name || this.name;
+	this.cwd = cwd || this.cwd;
 };
 
-var Cmd = function (name, cwd) {
-	this.name = name;
-	this.cwd = cwd;
-};
-Cmd.extend = function (ext, fn) {
-	var fn = fn || function (cwd) {
-		this.cwd = cwd;
+/**
+* è¯¥æ–¹æ³•ç”¨äºæ–°çš„ç±»ç»§æ‰¿Cmd
+* @params extension æ‰©å±•çš„æ–¹æ³•
+{
+	update:function(){
+		//...
+	}
+}
+*/
+var extend = function(superclass, extension) {
+	var clazz = function(name, cwd) {
+		if (arguments.length == 1) {
+			cwd = name;
+			name = this.name;
+		}
+
+		this.name = name || this.name;
+		this.cwd = cwd || this.cwd;
+	};
+	nodeUtil.inherits(clazz, superclass);
+
+	nodeUtil._extend(clazz.prototype, extension);
+
+	clazz.extend = function(extension) {
+		//return extend(this, extension, _fn);
+		return extend(this, extension);
 	};
 
-	fn.prototype = cmdPrototype;
-
-	for (var e in ext) {
-		fn.prototype[e] = ext[e];
-	}
-
-	return fn;
+	return clazz;
 };
-var cmdPrototype = Cmd.prototype = {
-	name : '',
-	cwd : '',
+
+/**
+ * å®šä¹‰æ‰©å±•æ–¹æ³•
+ */
+Cmd.extend = function(extension) {
+	return extend(Cmd, extension);
+};
+/**
+ *æ³¨å†Œå‘½ä»¤
+ */
+/*Cmd.register = function(config) {
+	var clazz = Cmd.extend(config.attrs);
+
+	return clazz;
+};*/
+Cmd.prototype = {
+	name: '',
+	cwd: '',
+	args: [],
+	isSysCmd: false,
 	/**
-	 * ÉèÖÃµ±Ç°ÔËĞĞÂ·¾¶
+	 * è®¾ç½®å½“å‰è¿è¡Œè·¯å¾„
 	 */
-	setCwd : function (cwd) {
+	setCwd: function(cwd) {
 		this.cwd = cwd;
 	},
 	/**
-	 * ´®ÁªÖ´ĞĞÃüÁî
-	 * @param params ÃüÁîÖ´ĞĞµÄ²ÎÊı
-	 * @param callback »Øµ÷·½·¨
-	error ´íÎó
-	stdout ±ê×¼Êä³ö
-	stderr ±ê×¼Òì³£
+	 * ä¸²è”æ‰§è¡Œå‘½ä»¤
+	 * @param args å‘½ä»¤æ‰§è¡Œçš„å‚æ•°
+	 * @param callback å›è°ƒæ–¹æ³•
+			error é”™è¯¯
+			stdout æ ‡å‡†è¾“å‡º
+			stderr æ ‡å‡†å¼‚å¸¸
 	 */
-	queryExec : function (params, callback) {
-		if (arguments.length == 1 && typeof(params) == 'function') {
-			callback = params;
-			params = null;
-		}
-
-		var _cmdStr = CmdHelper.getCmdString(this.name, params);
-
+	queueExec: function(args, option, callback, scope) {
 		var option = {};
-		if (this.cwd) {
-			option.cwd = this.cwd;
-		}
-		CmdHelper.exec(_cmdStr, option, callback);
+		option.cwd = option.cwd || this.cwd;
+		args = [].concat(this.args, args);
+
+		//cmdUtil.addQueue(this.name, args, option, callback, this.isSysCmd);
+		cmdUtil.addQueue({
+			cmdName: this.name,
+			args: args,
+			option: option,
+			callback: callback,
+			scope: scope || this,
+			isSysCmd: this.isSysCmd
+		});
 	},
 
 	/**
-	 *@desc ²¢ÁªÖ´ĞĞ
+	 *@desc å¹¶è”æ‰§è¡Œ
 	 */
-	exec : function (params, callback) {
-		params = isArray(params) ? params : [params];
+	exec: function(args, callback, scope) {
 		var option = {};
+		args = [].concat(this.args, args);
 
-		if (this.cwd) {
-			option.cwd = this.cwd;
-		}
-		var count = 0;
-		for (var i = 0, len = params.length; i < len; i++) {
-			var _str = CmdHelper.getCmdString(this.name, params[i]);
-			//Ö´ĞĞ
-			exec(_str, option, function (error, stdout, stderr) {
-				count++;
-				if (count == len) {
-					callback(error, stdout, stderr);
-				}
-			});
-		}
+		option.cwd = option.cwd || this.cwd;
+		cmdUtil.execCmd({
+			cmdName: this.name,
+			args: args,
+			option: option,
+			callback: callback,
+			scope: this,
+			isSysCmd: this.isSysCmd
+		});
 	}
 };
 
-var CmdHelper = {
-	isRunning : false,
-	list : [],
+var cmdUtil = {
+	isRunning: false,
+	queue: [],
 	/**
-	 * »ñÈ¡cmdÃüÁîµÄ×Ö·û´®
-	 * @param params ¸øÃüÁîĞĞµÄ²ÎÊı
-	 */
-	getCmdString : function (name, params) {
-		var _cmd = [name];
-		var paramsType = typeof(params);
-
-		switch (paramsType) {
-		case 'string':
-			_cmd.push(params);
-			break;
-		case 'object':
-			if (isArray(params)) {
-				_cmd = _cmd.concat(params);
-			} else {
-				for (var key in params) {
-					var val = params[key];
-					_cmd.push(key);
-					if (val) {
-						_cmd.push(val);
-					}
-				}
+	 * æ‰§è¡Œä¸‹ä¸€æ¡å‘½ä»¤
+	 cmdItem:{
+		cmdName:'',
+		args:[],
+		option:{},
+		callback:function(ret){
+			ret:{
+				stdout:''
+				stderr:'',
+				code:''
 			}
-			break;
-		}
-		return _cmd.join(' ');
-	},
-	/**
-	 * Ö´ĞĞÏÂÒ»ÌõÃüÁî
+		},
+		scope:[Object],
+		stdout:''
+		stderr:'',
+		code:''
+	 }
 	 */
-	doNext : function () {
-		var _cmd = CmdHelper.list.shift();
-		if (_cmd) {
-			exec(_cmd.cmd, _cmd.option, (function () {
-					this.callback.apply(this, arguments);
-
-					CmdHelper.doNext();
-				}).bind(_cmd));
+	doNext: function() {
+		var cmdItem = cmdUtil.queue.shift();
+		if (cmdItem) {
+			var ns = execCmd(cmdItem);
+			ns.on('close', cmdUtil.doNext);
 		} else {
-			CmdHelper.isRunning = false;
+			cmdUtil.isRunning = false;
 		}
 	},
-	/**
-	 * ¿ªÊ¼Ö´ĞĞÃüÁî
-	 */
-	run : function () {
-		if (!CmdHelper.isRunning) {
-			CmdHelper.isRunning = true;
-			CmdHelper.doNext();
-		}
-	},
-	/**
-	 * Ö´ĞĞ
-	 */
-	exec : function (cmd, option, callback) {
-		CmdHelper.list.push({
-			cmd : cmd,
-			option : option,
-			callback : callback
-		});
+	execCmd: function(cmdItem) {
+		var name = cmdItem.cmdName,
+			args = cmdItem.args,
+			option = cmdItem.option;
 
-		CmdHelper.run();
+		if (cmdItem.isSysCmd) {
+			args = [].concat(sysCmdArgs);
+			if (name) {
+				args = args.concat(name);
+			}
+			args = args.concat(cmdItem.args);
+			name = sysCmdName;
+			option = nodeUtil._extend({}, option);
+			option = nodeUtil._extend(option, sysOption);
+		}
+
+		console.log('name:' + name);
+		console.log('args:' + args);
+		console.log('option:' + nodeUtil.inspect(option));
+		var ns = nodeSpawn(name, args, option);
+		cmdUtil.bindEvent(ns, cmdItem);
+		return ns;
+	},
+	bindEvent: function(ns, cmdItem) {
+		ns.stdout.on('data', (function(data) {
+			this.stdout = data;
+		}).bind(cmdItem));
+		ns.stderr.on('data', (function(data) {
+			this.stderr = data;
+		}).bind(cmdItem));
+
+		ns.on('error', (function(data) {
+			this.error = data;
+			if (this.callback) {
+				this.callback.call(this.scope, {
+					stdout: this.stdout,
+					stderr: this.stderr,
+					error: data
+				});
+			}
+		}).bind(cmdItem));
+
+		ns.on('close', (function(code) {
+			if (this.callback) {
+				this.callback.call(this.scope, {
+					stdout: this.stdout,
+					stderr: this.stderr,
+					error: this.error
+				});
+			}
+		}).bind(cmdItem));
+	},
+	/**
+	 * å¼€å§‹æ‰§è¡Œå‘½ä»¤
+	 */
+	run: function() {
+		if (!cmdUtil.isRunning) {
+			cmdUtil.isRunning = true;
+			cmdUtil.doNext();
+		}
+	},
+	/**
+	 * æ·»åŠ åˆ°é˜Ÿåˆ—ä¸­
+	 */
+	addQueue: function(cmdName, args, option, callback, scop, isSysCmd) {
+		if (typeof(cmdName) == 'object' && arguments.length == 1) {
+			cmdUtil.queue.push(cmdName);
+		} else {
+			cmdUtil.queue.push({
+				cmdName: cmdName,
+				args: args,
+				option: option,
+				scope: scope,
+				isSysCmd: isSysCmd,
+				callback: callback
+			});
+		}
+
+		cmdUtil.run();
 	}
 };
 

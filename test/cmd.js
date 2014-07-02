@@ -1,24 +1,7 @@
-var Cmd=require('../index');
-
-var _cmd=new Cmd('dir','d:/workspace/');
-
-_cmd.queryExec(function(error,stdout,stdeer){
-	console.log('stdout:'+stdout);
-	console.log('stderr:'+stdeer);
-	
-	if(error){
-		console.lg('error:'+error);
-	}
+var Cmd = require('../index');
+var cmd = new Cmd();
+cmd.isSysCmd = true;
+cmd.setCwd('c:/');
+cmd.exec('dir', function(ret) {
+	console.log(ret.stdout.toString('utf8'));
 });
-/*
-cmd.exec('dir',{
-	// cwd:'d:/workspace/'
-},function(error,stdout,stdeer){
-	console.log('stdout:'+stdout);
-	console.log('stderr:'+stdeer);
-	
-	if(error){
-		console.lg('error:'+error);
-	}
-});
-*/
