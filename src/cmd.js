@@ -1,21 +1,6 @@
 var childProcess = require('child_process'),
-	nodeSpawn = childProcess.spawn,
+	nodeExec = childProcess.exec,
 	nodeUtil = require('util');
-
-
-var sysCmdArgs = [],
-	sysCmdName = '',
-	sysOption = {};
-if (process.platform === 'win32') {
-	sysCmdName = 'cmd.exe';
-	sysCmdArgs = ['/s', '/c'];
-	//sysOption.windowsVerbatimArguments = true;
-} else {
-	sysCmdName = '/bin/sh';
-	sysCmdArgs = ['-c'];
-}
-
-
 
 /**
  * 定义
@@ -25,56 +10,10 @@ var Cmd = function(name, cwd) {
 	this.cwd = cwd || this.cwd;
 };
 
-/**
-* 该方法用于新的类继承Cmd
-* @params extension 扩展的方法
-{
-	update:function(){
-		//...
-	}
-}
-*/
-var extend = function(superclass, extension) {
-	var clazz = function(name, cwd) {
-		if (arguments.length == 1) {
-			cwd = name;
-			name = this.name;
-		}
-
-		this.name = name || this.name;
-		this.cwd = cwd || this.cwd;
-	};
-	nodeUtil.inherits(clazz, superclass);
-
-	nodeUtil._extend(clazz.prototype, extension);
-
-	clazz.extend = function(extension) {
-		//return extend(this, extension, _fn);
-		return extend(this, extension);
-	};
-
-	return clazz;
-};
-
-/**
- * 定义扩展方法
- */
-Cmd.extend = function(extension) {
-	return extend(Cmd, extension);
-};
-/**
- *注册命令
- */
-/*Cmd.register = function(config) {
-	var clazz = Cmd.extend(config.attrs);
-
-	return clazz;
-};*/
 Cmd.prototype = {
 	name: '',
 	cwd: '',
 	args: [],
-	isSysCmd: false,
 	/**
 	 * 设置当前运行路径
 	 */
@@ -100,8 +39,7 @@ Cmd.prototype = {
 			args: args,
 			option: option,
 			callback: callback,
-			scope: scope || this,
-			isSysCmd: this.isSysCmd
+			scope: scope || this
 		});
 	},
 
@@ -118,8 +56,7 @@ Cmd.prototype = {
 			args: args,
 			option: option,
 			callback: callback,
-			scope: this,
-			isSysCmd: this.isSysCmd
+			scope: this
 		});
 	}
 };
@@ -149,8 +86,15 @@ var cmdUtil = {
 	doNext: function() {
 		var cmdItem = cmdUtil.queue.shift();
 		if (cmdItem) {
-			var ns = execCmd(cmdItem);
-			ns.on('close', cmdUtil.doNext);
+			cmdItem._callback = cmdItem.callback;
+
+			//此处改造原配置的callback
+			cmdItem.callback = function(data, cmdItem) {
+				if (cmdItem._callback) {
+					cmdItem._callback.call(cmdItem.scope, data); //执行预定义的callback
+				}
+				cmdUtil.doNext(); //再执行
+			};
 		} else {
 			cmdUtil.isRunning = false;
 		}
@@ -158,54 +102,20 @@ var cmdUtil = {
 	execCmd: function(cmdItem) {
 		var name = cmdItem.cmdName,
 			args = cmdItem.args,
-			option = cmdItem.option;
-
-		if (cmdItem.isSysCmd) {
-			args = [].concat(sysCmdArgs);
-			if (name) {
-				args = args.concat(name);
-			}
-			args = args.concat(cmdItem.args);
-			name = sysCmdName;
-			option = nodeUtil._extend({}, option);
-			option = nodeUtil._extend(option, sysOption);
-		}
-
-		console.log('name:' + name);
-		console.log('args:' + args);
-		console.log('option:' + nodeUtil.inspect(option));
-		var ns = nodeSpawn(name, args, option);
-		cmdUtil.bindEvent(ns, cmdItem);
-		return ns;
-	},
-	bindEvent: function(ns, cmdItem) {
-		ns.stdout.on('data', (function(data) {
-			this.stdout = data;
-		}).bind(cmdItem));
-		ns.stderr.on('data', (function(data) {
-			this.stderr = data;
-		}).bind(cmdItem));
-
-		ns.on('error', (function(data) {
-			this.error = data;
+			option = cmdItem.option,
+			cmdStr = '';
+			
+		args.unshift(name);
+		cmdStr = args.join(' ');
+		return nodeExec(cmdStr, (function(error, stdout, stderr) {
 			if (this.callback) {
-				this.callback.call(this.scope, {
-					stdout: this.stdout,
-					stderr: this.stderr,
-					error: data
-				});
+				this.callback.call(this.scope || this, {
+					error: error,
+					stdout: stdout,
+					stderr: stderr
+				}, this);
 			}
-		}).bind(cmdItem));
-
-		ns.on('close', (function(code) {
-			if (this.callback) {
-				this.callback.call(this.scope, {
-					stdout: this.stdout,
-					stderr: this.stderr,
-					error: this.error
-				});
-			}
-		}).bind(cmdItem));
+		}).bind(cmdItem), option);
 	},
 	/**
 	 * 开始执行命令
@@ -236,5 +146,7 @@ var cmdUtil = {
 		cmdUtil.run();
 	}
 };
+
+
 
 module.exports = Cmd;
