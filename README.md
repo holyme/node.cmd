@@ -1,7 +1,9 @@
-# demo
+# ReadMe
 
+'
 var NodeCmd = require('node.cmd');
 var svnCmd = new NodeCmd('svn');
+'
 
 公共方法
 * setCwd(cwd)：设置命令运行的路径
