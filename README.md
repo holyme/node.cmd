@@ -24,20 +24,19 @@
 		* cwd：命令行运行的路径
 	* 返回值：无
 	
-- queueExec(args, option, callback, [scope])
+- queueExec(args, [option], callback)
 	* 说明：按照队列顺序执行命令
 	* 参数：
 		* args：命令运行的参数
-		* options：命令行运行的环境参数
+		* options：命令行运行的环境参数，该参数可以不传
 		* callback：命令执行完的回调方法，包含三个参数errors,stdout,stderr
-		* scope：回调方法的作用域
 	* 返回值：无
 
-- exec(args, option, callback, [scope])：
+- exec(args, [option], callback)：
 	* 说明：执行命令
 	* 参数：
 		* args：命令运行的参数
-		* options：命令行运行的环境参数
+		* options：命令行运行的环境参数，该参数可以不传
 		* callback：命令执行完的回调方法，包含三个参数errors,stdout,stderr
 	* 返回值：无
 
