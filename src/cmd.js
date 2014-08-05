@@ -33,7 +33,6 @@ Cmd.prototype = {
 		option.cwd = option.cwd || this.cwd;
 		args = [].concat(this.args, args);
 
-		//cmdUtil.addQueue(this.name, args, option, callback, this.isSysCmd);
 		cmdUtil.addQueue({
 			cmdName: this.name,
 			args: args,
@@ -46,11 +45,11 @@ Cmd.prototype = {
 	/**
 	 *@desc 并联执行
 	 */
-	exec: function(args, callback, scope) {
-		var option = {};
-		args = [].concat(this.args, args);
-
+	exec: function(args, option, callback, scope) {
+		var option = option || {};
 		option.cwd = option.cwd || this.cwd;
+
+		args = [].concat(this.args, args);
 		cmdUtil.execCmd({
 			cmdName: this.name,
 			args: args,
@@ -61,28 +60,28 @@ Cmd.prototype = {
 	}
 };
 
+/**
+ * 执行下一条命令
+ cmdItem:{
+	cmdName:'',
+	args:[],
+	option:{},
+	callback:function(ret){
+		ret:{
+			stdout:''
+			stderr:'',
+			code:''
+		}
+	},
+	scope:[Object],
+	stdout:''
+	stderr:'',
+	code:''
+ }
+ */
 var cmdUtil = {
 	isRunning: false,
 	queue: [],
-	/**
-	 * 执行下一条命令
-	 cmdItem:{
-		cmdName:'',
-		args:[],
-		option:{},
-		callback:function(ret){
-			ret:{
-				stdout:''
-				stderr:'',
-				code:''
-			}
-		},
-		scope:[Object],
-		stdout:''
-		stderr:'',
-		code:''
-	 }
-	 */
 	doNext: function() {
 		var cmdItem = cmdUtil.queue.shift();
 		if (cmdItem) {
@@ -104,10 +103,10 @@ var cmdUtil = {
 			args = cmdItem.args,
 			option = cmdItem.option,
 			cmdStr = '';
-			
+
 		args.unshift(name);
 		cmdStr = args.join(' ');
-		return nodeExec(cmdStr, (function(error, stdout, stderr) {
+		return nodeExec(cmdStr, option, (function(error, stdout, stderr) {
 			if (this.callback) {
 				this.callback.call(this.scope || this, {
 					error: error,
@@ -146,7 +145,5 @@ var cmdUtil = {
 		cmdUtil.run();
 	}
 };
-
-
 
 module.exports = Cmd;

@@ -3,7 +3,6 @@ var Cmd = require('../index');
 
 var SvnCmd = Cmd.extend({
 	name: 'svn',
-	isSysCmd: false,
 	co: function(path) {
 		this.exec(['co', path], function(ret) {
 			if (ret.stdout) {
