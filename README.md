@@ -24,7 +24,7 @@ var svnCmd = new NodeCmd('svn');
 	* 返回值：无
 
 - exec(args, option, callback, scope)：
-	* 说明：按照队列顺序执行命令
+	* 说明：执行命令
 	* 参数：
 		* args：命令运行的参数
 		* options：命令行运行的环境参数
@@ -33,12 +33,15 @@ var svnCmd = new NodeCmd('svn');
 
 ## 代码示例 ##
 
-`
-var NodeCmd = require('node.cmd');
+	var NodeCmd = require('node.cmd');
+	
+	var svnCmd = new NodeCmd('svn');
+	svnCmd.exec(['co','https://svn.*****'],{},function(errors,stdout,stderr){
+		if(errors){
+			
+			console.log(errors);
+		}else{
+			console.log(stdout);
+		}
+	});
 
-
-var svnCmd = new NodeCmd('svn');
-svnCmd.exec(['co','https://svn.*****'],{},function(errors,stdout,stderr){
-});
-
-`
