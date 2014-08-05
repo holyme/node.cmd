@@ -1,6 +1,6 @@
 {
     "name": "node.cmd",
-    "version": "0.0.1",
+    "version": "1.0.0",
     "description": "exec commandline with node",
     "main": "index.js",
     "homepage": "https://github.com/wiky/node.cmd.git",
@@ -10,11 +10,15 @@
     },
     "keywords": [
         "commandline",
-        "cmd"
+        "cmd",
+        "node-cmd",
+        "node.cmd",
+        "cli",
+        "shell"
     ],
     "dependencies": {},
     "author": {
-        "name": "augustus",
+        "name": "xshong2008",
         "email": "cheerwe@126.com"
     }
 }
