@@ -28,9 +28,13 @@ Cmd.prototype = {
 			stdout 标准输出
 			stderr 标准异常
 	 */
-	queueExec: function(args, option, callback, scope) {
-		var option = {};
+	queueExec: function(args, option, callback) {
+		if (typeof(option) == 'function') {
+			callback = option;
+			option = {};
+		}
 		option.cwd = option.cwd || this.cwd;
+
 		args = [].concat(this.args, args);
 
 		cmdUtil.addQueue({
@@ -38,18 +42,22 @@ Cmd.prototype = {
 			args: args,
 			option: option,
 			callback: callback,
-			scope: scope || this
+			scope: this
 		});
 	},
 
 	/**
 	 *@desc 并联执行
 	 */
-	exec: function(args, option, callback, scope) {
-		var option = option || {};
+	exec: function(args, option, callback) {
+		if (typeof(option) == 'function') {
+			callback = option;
+			option = {};
+		}
 		option.cwd = option.cwd || this.cwd;
 
 		args = [].concat(this.args, args);
+		
 		cmdUtil.execCmd({
 			cmdName: this.name,
 			args: args,
