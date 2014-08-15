@@ -35,4 +35,6 @@
 		* callback：命令执行完的回调方法，包含三个参数errors,stdout,stderr
 	* 返回值：无
 
+## 全局属性 ##
 
+NodeCmd.isDebug：命令执行完后输出完整命令
