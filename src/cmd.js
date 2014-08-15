@@ -57,7 +57,7 @@ Cmd.prototype = {
 		option.cwd = option.cwd || this.cwd;
 
 		args = [].concat(this.args, args);
-		
+
 		cmdUtil.execCmd({
 			cmdName: this.name,
 			args: args,
@@ -121,6 +121,10 @@ var cmdUtil = {
 					stdout: stdout,
 					stderr: stderr
 				}, this);
+
+				if (Cmd.isDebug) {
+					console.log(cmdStr);
+				}
 			}
 		}).bind(cmdItem), option);
 	},
@@ -153,5 +157,7 @@ var cmdUtil = {
 		cmdUtil.run();
 	}
 };
+
+Cmd.isDebug = false;
 
 module.exports = Cmd;
