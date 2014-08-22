@@ -1,6 +1,6 @@
-var childProcess = require('child_process'),
-	nodeExec = childProcess.exec,
-	nodeUtil = require('util');
+var CmdUtil = require('./cmd-util'),
+	QueueCmd = require('./queue-cmd');
+
 
 /**
  * 定义
@@ -8,6 +8,7 @@ var childProcess = require('child_process'),
 var Cmd = function(name, cwd) {
 	this.name = name || this.name;
 	this.cwd = cwd || this.cwd;
+	this.queueCmd = new QueueCmd();
 };
 
 Cmd.prototype = {
@@ -20,6 +21,25 @@ Cmd.prototype = {
 	setCwd: function(cwd) {
 		this.cwd = cwd;
 	},
+	_getCmdItem: function(args, option, callback) {
+		if (typeof(option) == 'function') {
+			callback = option;
+			option = {};
+		}
+		option.cwd = option.cwd || this.cwd;
+
+		args = [].concat(this.args, args);
+
+		var cmdItem = {
+			cmdName: this.name,
+			args: args,
+			option: option,
+			callback: callback,
+			scope: this
+		};
+
+		return cmdItem;
+	},
 	/**
 	 * 串联执行命令
 	 * @param args 命令执行的参数
@@ -29,135 +49,24 @@ Cmd.prototype = {
 			stderr 标准异常
 	 */
 	queueExec: function(args, option, callback) {
-		if (typeof(option) == 'function') {
-			callback = option;
-			option = {};
-		}
-		option.cwd = option.cwd || this.cwd;
+		var cmdItem = this._getCmdItem(args, option, callback);
 
-		args = [].concat(this.args, args);
-
-		cmdUtil.addQueue({
-			cmdName: this.name,
-			args: args,
-			option: option,
-			callback: callback,
-			scope: this
-		});
+		var cmdStr = CmdUtil.getCmdString(cmdItem);
+		return this.queueCmd.queue(cmdStr, cmdItem.option, cmdItem.callback);
 	},
-
 	/**
 	 *@desc 并联执行
 	 */
 	exec: function(args, option, callback) {
-		if (typeof(option) == 'function') {
-			callback = option;
-			option = {};
-		}
-		option.cwd = option.cwd || this.cwd;
+		var cmdItem = this._getCmdItem(args, option, callback);
 
-		args = [].concat(this.args, args);
-
-		cmdUtil.execCmd({
-			cmdName: this.name,
-			args: args,
-			option: option,
-			callback: callback,
-			scope: this
-		});
+		CmdUtil.execCmd(cmdItem);
+		return cmdItem;
 	}
 };
 
-/**
- * 执行下一条命令
- cmdItem:{
-	cmdName:'',
-	args:[],
-	option:{},
-	callback:function(ret){
-		ret:{
-			stdout:''
-			stderr:'',
-			code:''
-		}
-	},
-	scope:[Object],
-	stdout:''
-	stderr:'',
-	code:''
- }
- */
-var cmdUtil = {
-	isRunning: false,
-	queue: [],
-	doNext: function() {
-		var cmdItem = cmdUtil.queue.shift();
-		if (cmdItem) {
-			cmdItem._callback = cmdItem.callback;
 
-			//此处改造原配置的callback
-			cmdItem.callback = function(data, cmdItem) {
-				if (cmdItem._callback) {
-					cmdItem._callback.call(cmdItem.scope, data); //执行预定义的callback
-				}
-				cmdUtil.doNext(); //再执行
-			};
-		} else {
-			cmdUtil.isRunning = false;
-		}
-	},
-	execCmd: function(cmdItem) {
-		var name = cmdItem.cmdName,
-			args = cmdItem.args,
-			option = cmdItem.option,
-			cmdStr = '';
-
-		args.unshift(name);
-		cmdStr = args.join(' ');
-		return nodeExec(cmdStr, option, (function(error, stdout, stderr) {
-			if (this.callback) {
-				this.callback.call(this.scope || this, {
-					error: error,
-					stdout: stdout,
-					stderr: stderr
-				}, this);
-
-				if (Cmd.isDebug) {
-					console.log(cmdStr);
-				}
-			}
-		}).bind(cmdItem), option);
-	},
-	/**
-	 * 开始执行命令
-	 */
-	run: function() {
-		if (!cmdUtil.isRunning) {
-			cmdUtil.isRunning = true;
-			cmdUtil.doNext();
-		}
-	},
-	/**
-	 * 添加到队列中
-	 */
-	addQueue: function(cmdName, args, option, callback, scop, isSysCmd) {
-		if (typeof(cmdName) == 'object' && arguments.length == 1) {
-			cmdUtil.queue.push(cmdName);
-		} else {
-			cmdUtil.queue.push({
-				cmdName: cmdName,
-				args: args,
-				option: option,
-				scope: scope,
-				isSysCmd: isSysCmd,
-				callback: callback
-			});
-		}
-
-		cmdUtil.run();
-	}
-};
-
-Cmd.isDebug = false;
+Cmd.exec = CmdUtil.exec;
+Cmd.QueueCmd = QueueCmd;
 
 module.exports = Cmd;
