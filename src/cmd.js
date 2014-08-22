@@ -67,6 +67,12 @@ Cmd.prototype = {
 
 
 Cmd.exec = CmdUtil.exec;
+Cmd.queue = function(cmd, option, callback) {
+	var ins = new QueueCmd();
+	ins.queue(cmd, option, callback);
+
+	return ins;
+};
 Cmd.QueueCmd = QueueCmd;
 
 module.exports = Cmd;

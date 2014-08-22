@@ -1,6 +1,6 @@
 {
     "name": "node.cmd",
-    "version": "2.0.1",
+    "version": "2.0.2",
     "description": "exec commandline with node",
     "main": "index.js",
     "homepage": "https://github.com/holyme/node.cmd",
