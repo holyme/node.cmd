@@ -32,7 +32,7 @@ var Util = {
 				stderr: stderr,
 				cmd: cmd
 			}, this);
-		}).bind(cmdItem, cmd);
+		}).bind(cmdItem, cmdStr);
 
 		return Util.exec(cmdStr, cmdItem.option, callback);
 	},

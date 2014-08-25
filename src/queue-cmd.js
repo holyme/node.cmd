@@ -33,7 +33,7 @@ QueueCmd.prototype = {
 			if (item) {
 				var cmd = item.cmd,
 					callback = (function(item, err, stdout, stderr) {
-						
+
 						item.callback && item.callback({
 							err: err,
 							stdout: stdout,
@@ -46,6 +46,8 @@ QueueCmd.prototype = {
 
 				if (typeof(cmd) == 'function') { //如果是function 直接执行
 					cmd();
+					this.isRunning = false;
+					this.run();
 				} else {
 					CmdUtil.exec(cmd, item.option, callback);
 				}
