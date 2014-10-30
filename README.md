@@ -60,13 +60,13 @@
 
 ### 使用代码 ###
 
-var NodeCmd = require('../index');
-var QueueCmd = NodeCmd.QueueCmd;
+	var NodeCmd = require('../index');
+	var QueueCmd = NodeCmd.QueueCmd;
 
 
-var ins = new QueueCmd();
+	var ins = new QueueCmd();
 
-ins
+	ins
 	.queue('npm -v', function(data) {
 		console.log(data.stdout);
 	})
